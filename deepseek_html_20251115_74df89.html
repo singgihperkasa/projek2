@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quran Digital - Auto Play Terjemahan</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a5e1a, #0d3315);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2d7d2d, #1a5e1a);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .controls {
+            background: #e8f5e8;
+            padding: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            border-bottom: 2px solid #2d7d2d;
+        }
+
+        .surah-selector, .playback-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select, button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select {
+            background: white;
+            border: 2px solid #2d7d2d;
+            min-width: 200px;
+        }
+
+        button {
+            background: #2d7d2d;
+            color: white;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #1a5e1a;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            background: #f8fff8;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid #e0e0e0;
+            font-weight: 600;
+            color: #2d7d2d;
+        }
+
+        .quran-text {
+            padding: 30px;
+            direction: rtl;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .verse {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 15px;
+            background: #f8fff8;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .verse.active {
+            border-color: #2d7d2d;
+            background: #e8f5e8;
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(45, 125, 45, 0.2);
+        }
+
+        .verse.playing-translation {
+            border-color: #ff6b00;
+            background: #fff8f0;
+        }
+
+        .arabic {
+            font-size: 2em;
+            line-height: 1.8;
+            text-align: center;
+            color: #1a3a1a;
+            margin-bottom: 12px;
+            font-family: 'Traditional Arabic', 'Scheherazade', serif;
+        }
+
+        .translation {
+            font-size: 1.1em;
+            line-height: 1.6;
+            text-align: center;
+            color: #444;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #2d7d2d;
+        }
+
+        .verse-number {
+            display: inline-block;
+            background: #2d7d2d;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 32px;
+            font-size: 0.85em;
+            margin-left: 8px;
+        }
+
+        .audio-indicator {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 0.8em;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #2d7d2d;
+            color: white;
+        }
+
+        .translation-indicator {
+            background: #ff6b00;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #1a5e1a;
+            color: white;
+            font-size: 0.9em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #2d7d2d;
+            font-size: 1.1em;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .arabic {
+                font-size: 1.6em;
+            }
+            
+            .translation {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Quran Digital Auto-Play</h1>
+            <p>Ayat + Terjemahan Otomatis</p>
+        </div>
+        
+        <div class="controls">
+            <div class="surah-selector">
+                <select id="surahSelect">
+                    <option value="1">Surah Al-Fatihah (1)</option>
+                    <option value="2">Surah Al-Baqarah (2)</option>
+                    <option value="114">Surah An-Nas (114)</option>
+                </select>
+                <button id="loadSurahBtn">Muat Surah</button>
+            </div>
+            
+            <div class="playback-controls">
+                <button id="playBtn">▶ Mulai Auto-Play</button>
+                <button id="pauseBtn" disabled>⏸ Jeda</button>
+                <button id="stopBtn" disabled>⏹ Berhenti</button>
+                <button id="nextBtn" disabled>⏭ Ayat Selanjutnya</button>
+            </div>
+        </div>
+        
+        <div class="status" id="statusText">
+            Pilih surah dan klik "Mulai Auto-Play"
+        </div>
+        
+        <div class="quran-text" id="quranText">
+            <div class="loading">Pilih surah untuk memulai...</div>
+        </div>
+        
+        <div class="footer">
+            <p>Quran Digital &copy; 2024 • Terjemahan Kemenag RI</p>
+        </div>
+    </div>
+
+    <script>
+        // Database surah dan ayat
+        const surahs = {
+            "1": { // Al-Fatihah
+                name: "Al-Fatihah",
+                totalVerses: 7,
+                verses: [
+                    {
+                        arabic: "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                        translation: "Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3",
+                        translationAudio: "" // Akan kita generate dengan TTS
+                    },
+                    {
+                        arabic: "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ",
+                        translation: "Segala puji bagi Allah, Tuhan seluruh alam,",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/2.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "الرَّحْمَٰنِ الرَّحِيمِ",
+                        translation: "Yang Maha Pengasih, Maha Penyayang,",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/3.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "مَالِكِ يَوْمِ الدِّينِ",
+                        translation: "Pemilik hari pembalasan.",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/4.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ",
+                        translation: "Hanya kepada Engkaulah kami menyembah dan hanya kepada Engkaulah kami mohon pertolongan.",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/5.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ",
+                        translation: "Tunjukilah kami jalan yang lurus,",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/6.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ",
+                        translation: "(yaitu) jalan orang-orang yang telah Engkau beri nikmat kepadanya; bukan (jalan) mereka yang dimurkai, dan bukan (pula jalan) mereka yang sesat.",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/7.mp3",
+                        translationAudio: ""
+                    }
+                ]
+            },
+            "2": { // Al-Baqarah (contoh 3 ayat pertama)
+                name: "Al-Baqarah",
+                totalVerses: 286,
+                verses: [
+                    {
+                        arabic: "الم",
+                        translation: "Alif Lam Mim.",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/8.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "ذَٰلِكَ الْكِتَابُ لَا رَيْبَ ۛ فِيهِ ۛ هُدًى لِلْمُتَّقِينَ",
+                        translation: "Kitab (Al-Qur'an) ini tidak ada keraguan padanya; petunjuk bagi mereka yang bertakwa,",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/9.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "الَّذِينَ يُؤْمِنُونَ بِالْغَيْبِ وَيُقِيمُونَ الصَّلَاةَ وَمِمَّا رَزَقْنَاهُمْ يُنْفِقُونَ",
+                        translation: "(yaitu) mereka yang beriman kepada yang gaib, melaksanakan salat, dan menginfakkan sebagian rezeki yang Kami berikan kepada mereka.",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/10.mp3",
+                        translationAudio: ""
+                    }
+                ]
+            },
+            "114": { // An-Nas
+                name: "An-Nas",
+                totalVerses: 6,
+                verses: [
+                    {
+                        arabic: "قُلْ أَعُوذُ بِرَبِّ النَّاسِ",
+                        translation: "Katakanlah, Aku berlindung kepada Tuhan manusia,",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/6236.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "مَلِكِ النَّاسِ",
+                        translation: "Raja manusia,",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/6237.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "إِلَٰهِ النَّاسِ",
+                        translation: "Sembahan manusia,",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/6238.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ",
+                        translation: "dari kejahatan (bisikan) setan yang bersembunyi,",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/6239.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ",
+                        translation: "yang membisikkan (kejahatan) ke dalam dada manusia,",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/6240.mp3",
+                        translationAudio: ""
+                    },
+                    {
+                        arabic: "مِنَ الْجِنَّةِ وَالنَّاسِ",
+                        translation: "dari (golongan) jin dan manusia.",
+                        audio: "https://cdn.islamic.network/quran/audio/128/ar.alafasy/6241.mp3",
+                        translationAudio: ""
+                    }
+                ]
+            }
+        };
+
+        // Elemen DOM
+        const surahSelect = document.getElementById('surahSelect');
+        const loadSurahBtn = document.getElementById('loadSurahBtn');
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const statusText = document.getElementById('statusText');
+        const quranText = document.getElementById('quranText');
+
+        // State variables
+        let currentSurah = null;
+        let currentVerseIndex = 0;
+        let isPlaying = false;
+        let isPaused = false;
+        let audioElement = null;
+        let synthesis = null;
+
+        // Initialize Web Speech API
+        function initSpeechSynthesis() {
+            if ('speechSynthesis' in window) {
+                synthesis = window.speechSynthesis;
+                // Set voice to Indonesian if available
+                const voices = synthesis.getVoices();
+                console.log('Available voices:', voices);
+            } else {
+                console.warn('Web Speech API not supported');
+            }
+        }
+
+        // Speech synthesis untuk terjemahan
+        function speakTranslation(text) {
+            if (!synthesis) return;
+            
+            // Stop any ongoing speech
+            synthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'id-ID';
+            utterance.rate = 0.9; // Sedikit lebih lambat
+            utterance.pitch = 1.0;
+            utterance.volume = 1;
+            
+            // Cari voice laki-laki (biasanya voice default)
+            const voices = synthesis.getVoices();
+            const indonesianVoice = voices.find(voice => 
+                voice.lang.includes('id') || voice.lang.includes('ID')
+            );
+            
+            if (indonesianVoice) {
+                utterance.voice = indonesianVoice;
+            }
+            
+            utterance.onstart = () => {
+                // Tandai ayat sedang play terjemahan
+                const currentVerse = document.getElementById(`verse-${currentVerseIndex}`);
+                if (currentVerse) {
+                    currentVerse.classList.add('playing-translation');
+                }
+                statusText.textContent = `Memutar terjemahan ayat ${currentVerseIndex + 1}`;
+            };
+            
+            utterance.onend = () => {
+                // Hapus tanda playing translation
+                const currentVerse = document.getElementById(`verse-${currentVerseIndex}`);
+                if (currentVerse) {
+                    currentVerse.classList.remove('playing-translation');
+                }
+                
+                // Lanjut ke ayat berikutnya
+                playNextVerse();
+            };
+            
+            synthesis.speak(utterance);
+        }
+
+        // Load surah yang dipilih
+        function loadSurah() {
+            const surahId = surahSelect.value;
+            currentSurah = surahs[surahId];
+            
+            if (!currentSurah) {
+                statusText.textContent = "Surah tidak ditemukan";
+                return;
+            }
+            
+            renderSurah();
+            resetPlayback();
+            statusText.textContent = `Surah ${currentSurah.name} dimuat. ${currentSurah.verses.length} ayat tersedia.`;
+        }
+
+        // Render surah ke HTML
+        function renderSurah() {
+            quranText.innerHTML = '';
+            
+            currentSurah.verses.forEach((verse, index) => {
+                const verseElement = document.createElement('div');
+                verseElement.className = 'verse';
+                verseElement.id = `verse-${index}`;
+                verseElement.innerHTML = `
+                    <div class="arabic">
+                        ${verse.arabic} 
+                        <span class="verse-number">${index + 1}</span>
+                    </div>
+                    <div class="translation">
+                        ${verse.translation}
+                        <span class="audio-indicator" style="display:none">🎧 Ayat</span>
+                        <span class="audio-indicator translation-indicator" style="display:none">🗣 Terjemahan</span>
+                    </div>
+                `;
+                quranText.appendChild(verseElement);
+            });
+        }
+
+        // Play ayat tertentu
+        function playVerse(index) {
+            if (!currentSurah || index >= currentSurah.verses.length) {
+                stopPlayback();
+                return;
+            }
+            
+            currentVerseIndex = index;
+            const verse = currentSurah.verses[index];
+            
+            // Update UI
+            updateVerseHighlight();
+            statusText.textContent = `Memutar ayat ${index + 1} dari ${currentSurah.name}`;
+            
+            // Scroll ke ayat
+            const verseElement = document.getElementById(`verse-${index}`);
+            if (verseElement) {
+                verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            // Tampilkan indicator audio ayat
+            const audioIndicator = verseElement.querySelector('.audio-indicator:not(.translation-indicator)');
+            if (audioIndicator) {
+                audioIndicator.style.display = 'inline-block';
+            }
+            
+            // Play audio ayat
+            if (audioElement) {
+                audioElement.pause();
+                audioElement = null;
+            }
+            
+            audioElement = new Audio(verse.audio);
+            audioElement.preload = 'auto';
+            
+            audioElement.oncanplaythrough = () => {
+                audioElement.play().catch(e => {
+                    console.error('Error playing audio:', e);
+                    statusText.textContent = 'Error memutar audio. Klik play lagi.';
+                });
+            };
+            
+            audioElement.onplay = () => {
+                isPlaying = true;
+                updateControls();
+            };
+            
+            audioElement.onended = () => {
+                // Sembunyikan indicator audio ayat
+                if (audioIndicator) {
+                    audioIndicator.style.display = 'none';
+                }
+                
+                // Setelah ayat selesai, play terjemahan
+                statusText.textContent = `Memulai terjemahan ayat ${index + 1}`;
+                speakTranslation(verse.translation);
+            };
+            
+            audioElement.onerror = (e) => {
+                console.error('Audio error:', e);
+                statusText.textContent = 'Error memutar audio ayat. Melanjutkan ke terjemahan...';
+                // Tetap lanjut ke terjemahan meski audio error
+                speakTranslation(verse.translation);
+            };
+        }
+
+        // Play ayat berikutnya
+        function playNextVerse() {
+            const nextIndex = currentVerseIndex + 1;
+            if (nextIndex < currentSurah.verses.length) {
+                playVerse(nextIndex);
+            } else {
+                // Selesai semua ayat
+                statusText.textContent = `Selesai memutar ${currentSurah.name}`;
+                stopPlayback();
+            }
+        }
+
+        // Mulai auto-play dari awal
+        function startPlayback() {
+            if (!currentSurah) {
+                statusText.textContent = "Pilih surah terlebih dahulu";
+                return;
+            }
+            
+            resetPlayback();
+            isPlaying = true;
+            isPaused = false;
+            updateControls();
+            
+            playVerse(0);
+        }
+
+        // Jeda playback
+        function pausePlayback() {
+            if (audioElement && !audioElement.paused) {
+                audioElement.pause();
+            }
+            if (synthesis && synthesis.speaking) {
+                synthesis.pause();
+            }
+            
+            isPaused = true;
+            updateControls();
+            statusText.textContent = "Dijeda";
+        }
+
+        // Lanjutkan playback
+        function resumePlayback() {
+            if (audioElement && audioElement.paused) {
+                audioElement.play();
+            }
+            if (synthesis && synthesis.paused) {
+                synthesis.resume();
+            }
+            
+            isPaused = false;
+            updateControls();
+            statusText.textContent = `Melanjutkan ayat ${currentVerseIndex + 1}`;
+        }
+
+        // Berhenti playback
+        function stopPlayback() {
+            if (audioElement) {
+                audioElement.pause();
+                audioElement = null;
+            }
+            if (synthesis) {
+                synthesis.cancel();
+            }
+            
+            isPlaying = false;
+            isPaused = false;
+            updateControls();
+            
+            // Reset highlight
+            document.querySelectorAll('.verse').forEach(verse => {
+                verse.classList.remove('active', 'playing-translation');
+            });
+            
+            // Sembunyikan semua indicator
+            document.querySelectorAll('.audio-indicator').forEach(indicator => {
+                indicator.style.display = 'none';
+            });
+            
+            statusText.textContent = "Playback dihentikan";
+        }
+
+        // Reset state playback
+        function resetPlayback() {
+            stopPlayback();
+            currentVerseIndex = 0;
+        }
+
+        // Update highlight ayat
+        function updateVerseHighlight() {
+            document.querySelectorAll('.verse').forEach(verse => {
+                verse.classList.remove('active');
+            });
+            
+            const currentVerse = document.getElementById(`verse-${currentVerseIndex}`);
+            if (currentVerse) {
+                currentVerse.classList.add('active');
+            }
+        }
+
+        // Update tombol controls
+        function updateControls() {
+            const hasSurah = !!currentSurah;
+            
+            playBtn.disabled = !hasSurah || (isPlaying && !isPaused);
+            pauseBtn.disabled = !hasSurah || !isPlaying || isPaused;
+            stopBtn.disabled = !hasSurah || !isPlaying;
+            nextBtn.disabled = !hasSurah || !isPlaying || currentVerseIndex >= currentSurah.verses.length - 1;
+            
+            // Update teks tombol play/pause
+            if (isPaused) {
+                playBtn.textContent = "▶ Lanjutkan";
+            } else {
+                playBtn.textContent = "▶ Mulai Auto-Play";
+            }
+        }
+
+        // Event Listeners
+        loadSurahBtn.addEventListener('click', loadSurah);
+        
+        playBtn.addEventListener('click', () => {
+            if (isPaused) {
+                resumePlayback();
+            } else {
+                startPlayback();
+            }
+        });
+        
+        pauseBtn.addEventListener('click', pausePlayback);
+        stopBtn.addEventListener('click', stopPlayback);
+        
+        nextBtn.addEventListener('click', () => {
+            if (isPlaying && currentVerseIndex < currentSurah.verses.length - 1) {
+                if (audioElement) audioElement.pause();
+                if (synthesis) synthesis.cancel();
+                playNextVerse();
+            }
+        });
+
+        // Auto-load surah pertama saat page load
+        window.addEventListener('load', () => {
+            initSpeechSynthesis();
+            loadSurah(); // Load surah pertama
+        });
+
+        // Handle page visibility change (pause when tab is hidden)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isPlaying && !isPaused) {
+                pausePlayback();
+            }
+        });
+    </script>
+</body>
+</html>
