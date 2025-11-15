@@ -1,0 +1,39 @@
+[
+  {
+    "number": 1,
+    "name": "Al-Fatihah",
+    "arabic": "الفاتحة",
+    "verses": 7,
+    "verses": [
+      {
+        "number": 1,
+        "arabic": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+        "translation": "Dengan nama Allah Yang Maha Pengasih, Maha Penyayang."
+      },
+      {
+        "number": 2,
+        "arabic": "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ",
+        "translation": "Segala puji bagi Allah, Tuhan seluruh alam,"
+      }
+    ]
+  },
+  {
+    "number": 2,
+    "name": "Al-Baqarah",
+    "arabic": "البقرة", 
+    "verses": 286,
+    "verses": [
+      {
+        "number": 1,
+        "arabic": "الم",
+        "translation": "Alif Laam Miim."
+      },
+      {
+        "number": 2,
+        "arabic": "ذَٰلِكَ الْكِتَابُ لَا رَيْبَ ۛ فِيهِ ۛ هُدًى لِلْمُتَّقِينَ",
+        "translation": "Kitab (Al Quran) ini tidak ada keraguan padanya; petunjuk bagi mereka yang bertakwa,"
+      }
+    ]
+  }
+  // ... tambahkan semua 114 surah di sini
+]
