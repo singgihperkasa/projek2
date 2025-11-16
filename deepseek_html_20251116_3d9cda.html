@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quran Player - Fast Python Version</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a5e1a, #0d3315);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2d7d2d, #1a5e1a);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .controls {
+            background: #e8f5e8;
+            padding: 20px;
+            border-bottom: 2px solid #2d7d2d;
+        }
+
+        .mode-selector {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            padding: 12px 24px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 8px;
+            background: #2d7d2d;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn:hover {
+            background: #1a5e1a;
+            transform: translateY(-2px);
+        }
+
+        .mode-btn.active {
+            background: #ff6b00;
+            box-shadow: 0 4px 12px rgba(255, 107, 0, 0.3);
+        }
+
+        .input-group {
+            display: none;
+            margin-bottom: 15px;
+        }
+
+        .input-group.active {
+            display: block;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #1a5e1a;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #2d7d2d;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        .playback-controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .control-btn {
+            padding: 12px 24px;
+            margin: 0 8px;
+            border: none;
+            border-radius: 8px;
+            background: #2d7d2d;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            background: #1a5e1a;
+            transform: translateY(-2px);
+        }
+
+        .control-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .control-btn.stop {
+            background: #e74c3c;
+        }
+
+        .control-btn.stop:hover:not(:disabled) {
+            background: #c0392b;
+        }
+
+        .status {
+            background: #f8fff8;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid #e0e0e0;
+            font-weight: 600;
+            color: #2d7d2d;
+        }
+
+        .quran-display {
+            padding: 25px;
+            min-height: 200px;
+        }
+
+        .verse-container {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .arabic {
+            font-size: 2.2em;
+            line-height: 1.8;
+            color: #1a3a1a;
+            margin-bottom: 15px;
+            font-family: 'Traditional Arabic', 'Scheherazade', serif;
+            direction: rtl;
+        }
+
+        .translation {
+            font-size: 1.2em;
+            line-height: 1.6;
+            color: #444;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #2d7d2d;
+        }
+
+        .verse-info {
+            display: inline-block;
+            background: #2d7d2d;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .progress-container {
+            background: #e8f5e8;
+            padding: 15px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: #2d7d2d;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .cache-info {
+            text-align: center;
+            padding: 10px;
+            background: #fff3cd;
+            color: #856404;
+            font-size: 0.9em;
+            border-top: 1px solid #ffeaa7;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 15px;
+            background: #1a5e1a;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #2d7d2d;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            .arabic {
+                font-size: 1.8em;
+            }
+            
+            .mode-btn {
+                display: block;
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Quran Player - Fast Version</h1>
+            <p>Converted from Python - Cache System Included</p>
+        </div>
+        
+        <div class="controls">
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="surah">📖 Mode Surah</button>
+                <button class="mode-btn" data-mode="juz">📚 Mode Juz</button>
+            </div>
+            
+            <div class="input-group surah-input active">
+                <label for="surahNumber">Nomor Surah (1-114):</label>
+                <input type="number" id="surahNumber" min="1" max="114" value="1" placeholder="Contoh: 1">
+                
+                <label for="startAyat">Mulai Ayat:</label>
+                <input type="number" id="startAyat" min="1" value="1" placeholder="Ayat mulai">
+                
+                <label for="endAyat">Sampai Ayat:</label>
+                <input type="number" id="endAyat" min="1" value="7" placeholder="Ayat akhir">
+            </div>
+            
+            <div class="input-group juz-input">
+                <label for="juzNumber">Nomor Juz (1-30):</label>
+                <input type="number" id="juzNumber" min="1" max="30" value="1" placeholder="Contoh: 1">
+            </div>
+            
+            <div class="playback-controls">
+                <button class="control-btn" id="playBtn">▶ Mulai Playback</button>
+                <button class="control-btn" id="pauseBtn" disabled>⏸ Jeda</button>
+                <button class="control-btn stop" id="stopBtn" disabled>⏹ Stop</button>
+            </div>
+        </div>
+        
+        <div class="status" id="statusText">
+            Pilih mode dan klik "Mulai Playback"
+        </div>
+        
+        <div class="quran-display" id="quranDisplay">
+            <div class="loading">Ayat akan ditampilkan di sini...</div>
+        </div>
+        
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Menunggu...</div>
+        </div>
+        
+        <div class="cache-info" id="cacheInfo">
+            🔄 Cache System: Ready - Data akan disimpan di browser
+        </div>
+        
+        <div class="footer">
+            <p>Converted from Python • Cache System • Fast Performance</p>
+        </div>
+    </div>
+
+    <script>
+        // ==================== CACHE SYSTEM (Like Python Version) ====================
+        class QuranCache {
+            constructor() {
+                this.cacheName = 'quran-audio-cache';
+                this.updateCacheInfo();
+            }
+
+            // Simpan data ke localStorage (seperti file cache di Python)
+            setCache(key, data) {
+                try {
+                    localStorage.setItem(`quran_${key}`, JSON.stringify(data));
+                    this.updateCacheInfo();
+                    return true;
+                } catch (e) {
+                    console.warn('Cache penuh, menghapus cache lama...');
+                    this.clearOldCache();
+                    return this.setCache(key, data);
+                }
+            }
+
+            // Ambil data dari cache
+            getCache(key) {
+                const data = localStorage.getItem(`quran_${key}`);
+                return data ? JSON.parse(data) : null;
+            }
+
+            // Cek apakah data ada di cache
+            hasCache(key) {
+                return localStorage.getItem(`quran_${key}`) !== null;
+            }
+
+            // Hapus cache lama (jika penuh)
+            clearOldCache() {
+                const keys = Object.keys(localStorage).filter(k => k.startsWith('quran_'));
+                if (keys.length > 50) { // Keep only 50 latest items
+                    keys.slice(0, 10).forEach(k => localStorage.removeItem(k));
+                }
+            }
+
+            // Update info cache
+            updateCacheInfo() {
+                const cacheCount = Object.keys(localStorage).filter(k => k.startsWith('quran_')).length;
+                document.getElementById('cacheInfo').textContent = 
+                    `🔄 Cache System: ${cacheCount} items tersimpan di browser`;
+            }
+        }
+
+        // ==================== MAIN APPLICATION ====================
+        const cache = new QuranCache();
+        const state = {
+            currentMode: 'surah',
+            isPlaying: false,
+            isPaused: false,
+            currentVerseIndex: 0,
+            currentVerses: [],
+            audioElement: null,
+            synthesis: window.speechSynthesis || null,
+            qari: 'ar.alafasy',
+            langTrans: 'id.indonesian'
+        };
+
+        // DOM Elements
+        const elements = {
+            modeBtns: document.querySelectorAll('.mode-btn'),
+            surahInput: document.querySelector('.surah-input'),
+            juzInput: document.querySelector('.juz-input'),
+            playBtn: document.getElementById('playBtn'),
+            pauseBtn: document.getElementById('pauseBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            statusText: document.getElementById('statusText'),
+            quranDisplay: document.getElementById('quranDisplay'),
+            progressBar: document.getElementById('progressBar'),
+            progressText: document.getElementById('progressText')
+        };
+
+        // ==================== EVENT LISTENERS ====================
+        elements.modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                switchMode(mode);
+            });
+        });
+
+        elements.playBtn.addEventListener('click', startPlayback);
+        elements.pauseBtn.addEventListener('click', pausePlayback);
+        elements.stopBtn.addEventListener('click', stopPlayback);
+
+        function switchMode(mode) {
+            state.currentMode = mode;
+            
+            // Update UI
+            elements.modeBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            
+            elements.surahInput.classList.toggle('active', mode === 'surah');
+            elements.juzInput.classList.toggle('active', mode === 'juz');
+            
+            elements.statusText.textContent = `Mode ${mode === 'surah' ? 'Surah' : 'Juz'} dipilih`;
+        }
+
+        // ==================== PLAYBACK SYSTEM ====================
+        async function startPlayback() {
+            if (state.isPlaying) return;
+            
+            try {
+                state.isPlaying = true;
+                state.isPaused = false;
+                updateControls();
+                
+                if (state.currentMode === 'surah') {
+                    await playSurahMode();
+                } else {
+                    await playJuzMode();
+                }
+                
+            } catch (error) {
+                console.error('Playback error:', error);
+                elements.statusText.textContent = 'Error: ' + error.message;
+                stopPlayback();
+            }
+        }
+
+        async function playSurahMode() {
+            const surah = parseInt(document.getElementById('surahNumber').value);
+            const start = parseInt(document.getElementById('startAyat').value);
+            const end = parseInt(document.getElementById('endAyat').value);
+            
+            if (!surah || !start || !end) {
+                throw new Error('Data surah tidak lengkap');
+            }
+            
+            elements.statusText.textContent = `Memulai Surah ${surah}, ayat ${start}-${end}`;
+            
+            for (let ayat = start; ayat <= end; ayat++) {
+                if (!state.isPlaying) break;
+                if (state.isPaused) await waitForResume();
+                
+                await playVerse(surah, ayat);
+                updateProgress(ayat - start + 1, end - start + 1, `Surah ${surah}`);
+            }
+            
+            elements.statusText.textContent = `Selesai Surah ${surah}`;
+            stopPlayback();
+        }
+
+        async function playJuzMode() {
+            const juz = parseInt(document.getElementById('juzNumber').value);
+            
+            if (!juz) {
+                throw new Error('Nomor juz tidak valid');
+            }
+            
+            elements.statusText.textContent = `Mengambil data Juz ${juz}...`;
+            
+            try {
+                // Get juz data from API
+                const response = await fetch(`https://api.alquran.cloud/v1/juz/${juz}/${state.qari}`);
+                const data = await response.json();
+                
+                if (!data.data || !data.data.ayahs) {
+                    throw new Error('Data juz tidak ditemukan');
+                }
+                
+                const ayatList = data.data.ayahs;
+                const total = ayatList.length;
+                
+                elements.statusText.textContent = `Memulai Juz ${juz}, ${total} ayat`;
+                
+                for (let i = 0; i < total; i++) {
+                    if (!state.isPlaying) break;
+                    if (state.isPaused) await waitForResume();
+                    
+                    const ayatData = ayatList[i];
+                    const surah = ayatData.surah.number;
+                    const ayat = ayatData.numberInSurah;
+                    
+                    await playVerse(surah, ayat);
+                    updateProgress(i + 1, total, `Juz ${juz}`);
+                }
+                
+                elements.statusText.textContent = `Selesai Juz ${juz}`;
+                stopPlayback();
+                
+            } catch (error) {
+                throw new Error(`Gagal mengambil data Juz: ${error.message}`);
+            }
+        }
+
+        async function playVerse(surah, ayat) {
+            const cacheKey = `${surah}_${ayat}`;
+            
+            // Check cache first (like Python version)
+            let verseData = cache.getCache(cacheKey);
+            
+            if (!verseData) {
+                elements.statusText.textContent = `Mengunduh ayat ${surah}:${ayat}...`;
+                
+                // Get data from API (like Python requests)
+                const [arabicResp, transResp] = await Promise.all([
+                    fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${ayat}/${state.qari}`),
+                    fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${ayat}/${state.langTrans}`)
+                ]);
+                
+                const arabicData = await arabicResp.json();
+                const transData = await transResp.json();
+                
+                verseData = {
+                    arabic: arabicData.data.text,
+                    translation: transData.data.text,
+                    audioUrl: arabicData.data.audio
+                };
+                
+                // Save to cache (like Python file cache)
+                cache.setCache(cacheKey, verseData);
+            }
+            
+            // Display verse (like Python print)
+            displayVerse(surah, ayat, verseData.arabic, verseData.translation);
+            
+            // Play audio (like Python os.system mpv)
+            await playAudio(verseData.audioUrl);
+            
+            // Play translation TTS (like Python gTTS)
+            await playTranslation(verseData.translation);
+        }
+
+        function displayVerse(surah, ayat, arabic, translation) {
+            elements.quranDisplay.innerHTML = `
+                <div class="verse-container">
+                    <div class="verse-info">Surah ${surah} : Ayat ${ayat}</div>
+                    <div class="arabic">${arabic}</div>
+                    <div class="translation">${translation}</div>
+                </div>
+            `;
+            
+            elements.statusText.textContent = `Memutar Surah ${surah} : Ayat ${ayat}`;
+        }
+
+        function playAudio(audioUrl) {
+            return new Promise((resolve) => {
+                if (state.audioElement) {
+                    state.audioElement.pause();
+                }
+                
+                state.audioElement = new Audio(audioUrl);
+                state.audioElement.play();
+                
+                state.audioElement.onended = resolve;
+                state.audioElement.onerror = resolve;
+            });
+        }
+
+        function playTranslation(text) {
+            return new Promise((resolve) => {
+                if (!state.synthesis) {
+                    resolve();
+                    return;
+                }
+                
+                // Stop any ongoing speech
+                state.synthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID';
+                utterance.rate = 0.9;
+                
+                utterance.onend = resolve;
+                utterance.onerror = resolve;
+                
+                state.synthesis.speak(utterance);
+            });
+        }
+
+        function waitForResume() {
+            return new Promise(resolve => {
+                const checkInterval = setInterval(() => {
+                    if (!state.isPaused) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+            });
+        }
+
+        function updateProgress(current, total, context) {
+            const percent = (current / total) * 100;
+            elements.progressBar.style.width = `${percent}%`;
+            elements.progressText.textContent = `${context}: ${current}/${total} (${Math.round(percent)}%)`;
+        }
+
+        function pausePlayback() {
+            state.isPaused = true;
+            
+            if (state.audioElement) {
+                state.audioElement.pause();
+            }
+            
+            if (state.synthesis) {
+                state.synthesis.pause();
+            }
+            
+            updateControls();
+            elements.statusText.textContent = 'Dijeda';
+        }
+
+        function resumePlayback() {
+            state.isPaused = false;
+            
+            if (state.audioElement) {
+                state.audioElement.play();
+            }
+            
+            if (state.synthesis) {
+                state.synthesis.resume();
+            }
+            
+            updateControls();
+            elements.statusText.textContent = 'Melanjutkan...';
+        }
+
+        function stopPlayback() {
+            state.isPlaying = false;
+            state.isPaused = false;
+            state.currentVerseIndex = 0;
+            
+            if (state.audioElement) {
+                state.audioElement.pause();
+                state.audioElement = null;
+            }
+            
+            if (state.synthesis) {
+                state.synthesis.cancel();
+            }
+            
+            updateControls();
+            elements.progressBar.style.width = '0%';
+            elements.progressText.textContent = 'Playback dihentikan';
+        }
+
+        function updateControls() {
+            elements.playBtn.disabled = state.isPlaying && !state.isPaused;
+            elements.pauseBtn.disabled = !state.isPlaying || state.isPaused;
+            elements.stopBtn.disabled = !state.isPlaying;
+            
+            if (state.isPaused) {
+                elements.playBtn.textContent = '▶ Lanjutkan';
+                elements.playBtn.onclick = resumePlayback;
+            } else {
+                elements.playBtn.textContent = '▶ Mulai Playback';
+                elements.playBtn.onclick = startPlayback;
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            elements.statusText.textContent = 'Sistem siap - Cache aktif';
+            console.log('Quran Player loaded - Python style cache system ready');
+        });
+    </script>
+</body>
+</html>
