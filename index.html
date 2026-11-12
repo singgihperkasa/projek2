@@ -1,149 +1,71 @@
-<!DOCTYPE html>
+from pathlib import Path
+
+html = r'''<!doctype html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Qur'an Player Web</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b3d32">
+  <title>Quran Reader Offline</title>
   <style>
-    body { font-family: sans-serif; background: #f8f9fa; color: #222; padding: 20px; }
-    h2 { text-align: center; margin-bottom: 20px; }
-    .control { text-align: center; margin-bottom: 20px; }
-    select, input, button {
-      margin: 5px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 15px;
-    }
-    button { background: #007BFF; color: white; border: none; cursor: pointer; }
-    button:hover { background: #0056b3; }
-    .ayat { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .arab { font-family: 'Scheherazade New', 'Amiri', serif; font-size: 26px; direction: rtl; text-align: right; color: #111; }
-    .arti { margin-top: 8px; font-size: 16px; }
-    audio { width: 100%; margin-top: 6px; }
+    :root{color-scheme:dark;--bg:#071c18;--panel:#10352d;--panel2:#16483b;--gold:#e8c878;--muted:#b9cec6;--text:#f5f7f3;--line:#2b5a4d}
+    *{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#071c18,#0d2922 55%,#071c18);color:var(--text);font:16px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+    main{max-width:850px;margin:auto;padding:24px 16px 60px}.hero{text-align:center;padding:18px 8px 24px}.hero .mark{font-size:34px}.hero h1{font-size:clamp(24px,5vw,36px);margin:5px 0;color:var(--gold)}.hero p{margin:0;color:var(--muted)}
+    .panel{background:rgba(16,53,45,.94);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 10px 30px #0002}
+    h2{font-size:18px;margin:0 0 14px;color:var(--gold)}label{display:block;font-size:14px;color:var(--muted);margin:10px 0 5px}
+    select,input,button{font:inherit;border-radius:10px;border:1px solid var(--line);padding:11px 12px;background:#09271f;color:var(--text);width:100%}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.actions button{flex:1;min-width:115px;cursor:pointer;font-weight:650}.primary{background:#d8b75f;color:#14251d;border-color:#d8b75f}.secondary{background:var(--panel2)}button:disabled{opacity:.45;cursor:not-allowed}
+    .status{color:var(--muted);font-size:14px;min-height:24px;margin-top:12px}.progress{height:7px;background:#09271f;border-radius:9px;overflow:hidden;margin-top:8px}.progress>div{height:100%;width:0;background:var(--gold);transition:width .2s}
+    .ayah{padding:18px 0;border-bottom:1px solid var(--line)}.ayah:last-child{border:0}.ayah-meta{font-size:13px;color:var(--gold);margin-bottom:10px}.arabic{font-family:"Noto Naskh Arabic","Amiri","Scheherazade New",serif;font-size:30px;line-height:2;text-align:right;direction:rtl;margin:6px 0 14px}.translation{color:#e2ece6}.ayah button{width:auto;margin-top:10px;padding:7px 12px;font-size:14px}
+    .small{font-size:13px;color:var(--muted)}.notice{background:#342d19;border:1px solid #76643a;color:#f4e4b5;padding:12px;border-radius:12px;font-size:14px}
+    @media(max-width:520px){main{padding:14px 11px 40px}.grid{grid-template-columns:1fr}.panel{padding:14px}.arabic{font-size:27px}}
   </style>
 </head>
 <body>
+<main>
+  <header class="hero">
+    <div class="mark">📖</div>
+    <h1>Quran Reader</h1>
+    <p>Tilawah Al-Qur’an · Qari Mishary Alafasy · Terjemahan Indonesia</p>
+  </header>
 
-<h2>📖 Qur'an Player Web</h2>
+  <section class="panel">
+    <h2>Pengaturan bacaan</h2>
+    <label for="mode">Mode pilihan</label>
+    <select id="mode"><option value="surah">Berdasarkan Surah</option><option value="juz">Berdasarkan Juz</option></select>
+    <div id="surahFields">
+      <label for="surah">Pilih surah</label>
+      <select id="surah"></select>
+      <div class="grid">
+        <div><label for="start">Mulai ayat</label><input id="start" type="number" min="1" value="1"></div>
+        <div><label for="end">Sampai ayat</label><input id="end" type="number" min="1" value="7"></div>
+      </div>
+    </div>
+    <div id="juzFields" hidden>
+      <label for="juz">Pilih juz</label>
+      <select id="juz"></select>
+    </div>
+    <div class="actions">
+      <button class="primary" id="startBtn">▶ Mulai tadarus</button>
+      <button class="secondary" id="pauseBtn" disabled>Ⅱ Jeda</button>
+      <button class="secondary" id="stopBtn" disabled>■ Berhenti</button>
+    </div>
+    <div class="status" id="status" role="status">Pilih surah atau juz, lalu tekan Mulai tadarus.</div>
+    <div class="progress"><div id="progressBar"></div></div>
+  </section>
 
-<div class="control">
-  <label>Pilih Surat:</label>
-  <select id="surah"></select>
-  <label>Jumlah Ayat:</label>
-  <input type="number" id="jumlah" min="1" max="286" value="5">
-  <button id="loadBtn">Muat Surat</button>
-  <button id="playAllBtn">▶️ Putar Semua</button>
-</div>
+  <section class="panel">
+    <h2>Daftar bacaan</h2>
+    <div id="output" class="small">Ayat yang dibaca akan tampil di sini.</div>
+  </section>
 
-<div id="daftar-ayat">Silakan pilih surat dan tekan "Muat Surat"</div>
-
+  <p class="notice">Catatan: GitHub Pages berjalan di browser, jadi tidak bisa menjalankan <code>mpv</code>, <code>termux-tts-speak</code>, atau menyimpan file ke folder Termux. Halaman ini memakai pemutar audio browser, fitur suara perangkat (jika tersedia), dan cache browser untuk data yang pernah dibuka. Koneksi internet tetap diperlukan untuk unduhan pertama.</p>
+  <p class="small">Sumber data: AlQuran Cloud API. Audio dan teks akan dimuat saat dibutuhkan.</p>
+</main>
 <script>
-const daftarSurat = [
-  "Al-Fatihah","Al-Baqarah","Ali Imran","An-Nisa","Al-Ma'idah","Al-An'am","Al-A'raf","Al-Anfal",
-  "At-Taubah","Yunus","Hud","Yusuf","Ar-Ra'd","Ibrahim","Al-Hijr","An-Nahl","Al-Isra","Al-Kahfi",
-  "Maryam","Ta-Ha","Al-Anbiya","Al-Hajj","Al-Mu'minun","An-Nur","Al-Furqan","Ash-Shu'ara",
-  "An-Naml","Al-Qasas","Al-Ankabut","Ar-Rum","Luqman","As-Sajdah","Al-Ahzab","Saba","Fatir",
-  "Ya-Sin","As-Saffat","Sad","Az-Zumar","Ghafir","Fussilat","Ash-Shura","Az-Zukhruf","Ad-Dukhan",
-  "Al-Jathiyah","Al-Ahqaf","Muhammad","Al-Fath","Al-Hujurat","Qaf","Adh-Dhariyat","At-Tur",
-  "An-Najm","Al-Qamar","Ar-Rahman","Al-Waqi'ah","Al-Hadid","Al-Mujadila","Al-Hasyr","Al-Mumtahanah",
-  "As-Saff","Al-Jumu'ah","Al-Munafiqun","At-Taghabun","At-Talaq","At-Tahrim","Al-Mulk","Al-Qalam",
-  "Al-Haqqah","Al-Ma'arij","Nuh","Al-Jinn","Al-Muzzammil","Al-Muddathir","Al-Qiyamah","Al-Insan",
-  "Al-Mursalat","An-Naba","An-Nazi'at","Abasa","At-Takwir","Al-Infitar","Al-Mutaffifin","Al-Insyiqaq",
-  "Al-Buruj","At-Tariq","Al-A'la","Al-Ghasyiyah","Al-Fajr","Al-Balad","Asy-Syams","Al-Lail","Ad-Duha",
-  "Al-Insyirah","At-Tin","Al-Alaq","Al-Qadr","Al-Bayyinah","Az-Zalzalah","Al-Adiyat","Al-Qari'ah",
-  "At-Takatsur","Al-Asr","Al-Humazah","Al-Fil","Quraish","Al-Ma'un","Al-Kawthar","Al-Kafirun",
-  "An-Nasr","Al-Lahab","Al-Ikhlas","Al-Falaq","An-Nas"
+const surahs = [
+["Al-Fatihah",7],["Al-Baqarah",286],["Ali 'Imran",200],["An-Nisa",176],["Al-Ma'idah",120],["Al-An'am",165],["Al-A'raf",206],["Al-Anfal",75],["At-Taubah",129],["Yunus",109],["Hud",123],["Yusuf",111],["Ar-Ra'd",43],["Ibrahim",52],["Al-Hijr",99],["An-Nahl",128],["Al-Isra",111],["Al-Kahf",110],["Maryam",98],["Ta-Ha",135],["Al-Anbiya",112],["Al-Hajj",78],["Al-Mu'minun",118],["An-Nur",64],["Al-Furqan",77],["Asy-Syu'ara",227],["An-Naml",93],["Al-Qasas",88],["Al-'Ankabut",69],["Ar-Rum",60],["Luqman",34],["As-Sajdah",30],["Al-Ahzab",73],["Saba",54],["Fatir",45],["Yasin",83],["As-Saffat",182],["Sad",88],["Az-Zumar",75],["Ghafir",85],["Fussilat",54],["Asy-Syura",53],["Az-Zukhruf",89],["Ad-Dukhan",59],["Al-Jasiyah",37],["Al-Ahqaf",35],["Muhammad",38],["Al-Fath",29],["Al-Hujurat",18],["Qaf",45],["Az-Zariyat",60],["At-Tur",49],["An-Najm",62],["Al-Qamar",55],["Ar-Rahman",78],["Al-Waqi'ah",96],["Al-Hadid",29],["Al-Mujadilah",22],["Al-Hasyr",24],["Al-Mumtahanah",13],["As-Saff",14],["Al-Jumu'ah",11],["Al-Munafiqun",11],["At-Taghabun",18],["At-Talaq",12],["At-Tahrim",12],["Al-Mulk",30],["Al-Qalam",52],["Al-Haqqah",52],["Al-Ma'arij",44],["Nuh",28],["Al-Jinn",28],["Al-Muzzammil",20],["Al-Muddaththir",56],["Al-Qiyamah",40],["Al-Insan",31],["Al-Mursalat",50],["An-Naba",40],["An-Nazi'at",46],["'Abasa",42],["At-Takwir",29],["Al-Infitar",19],["Al-Mutaffifin",36],["Al-Insyiqaq",25],["Al-Buruj",22],["At-Tariq",17],["Al-A'la",19],["Al-Ghasyiyah",26],["Al-Fajr",30],["Al-Balad",20],["Asy-Syams",15],["Al-Lail",21],["Ad-Duha",11],["Asy-Syarh",8],["At-Tin",8],["Al-'Alaq",19],["Al-Qadr",5],["Al-Bayyinah",8],["Az-Zalzalah",8],["Al-'Adiyat",11],["Al-Qari'ah",11],["At-Takatsur",8],["Al-'Asr",3],["Al-Humazah",9],["Al-Fil",5],["Quraisy",4],["Al-Ma'un",7],["Al-Kautsar",3],["Al-Kafirun",6],["An-Nasr",3],["Al-Lahab",5],["Al-Ikhlas",4],["Al-Falaq",5],["An-Nas",6]
 ];
-
-const surahSelect = document.getElementById('surah');
-daftarSurat.forEach((nama, i) => {
-  const opt = document.createElement('option');
-  opt.value = i + 1;
-  opt.textContent = `${i + 1}. ${nama}`;
-  surahSelect.appendChild(opt);
-});
-
-let ayatList = [];
-let sedangDiputar = false;
-
-async function muatSurat() {
-  const surah = surahSelect.value;
-  const jml = parseInt(document.getElementById('jumlah').value);
-  const container = document.getElementById('daftar-ayat');
-  container.innerHTML = "Memuat ayat...";
-  ayatList = [];
-
-  for (let ayat = 1; ayat <= jml; ayat++) {
-    const arabRes = await fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${ayat}/ar.alafasy`);
-    const transRes = await fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${ayat}/id.indonesian`);
-    const arab = await arabRes.json();
-    const trans = await transRes.json();
-
-    if (!arab.data) break;
-
-    ayatList.push({
-      ayat,
-      teksArab: arab.data.text,
-      terjemah: trans.data.text,
-      audio: arab.data.audio
-    });
-  }
-
-  container.innerHTML = '';
-  ayatList.forEach(data => {
-    const div = document.createElement('div');
-    div.className = 'ayat';
-    div.innerHTML = `
-      <div class="arab">${data.teksArab}</div>
-      <div class="arti">${data.terjemah}</div>
-      <audio id="audio${data.ayat}" src="${data.audio}" controls></audio>
-    `;
-    container.appendChild(div);
-  });
-}
-
-async function playAll() {
-  if (sedangDiputar || ayatList.length === 0) return;
-  sedangDiputar = true;
-
-  for (let i = 0; i < ayatList.length; i++) {
-    const data = ayatList[i];
-    const audioEl = document.getElementById(`audio${data.ayat}`);
-    await playAudioDanTTS(audioEl, data.terjemah);
-  }
-
-  sedangDiputar = false;
-}
-
-function playAudioDanTTS(audioEl, teks) {
-  return new Promise(resolve => {
-
-    audioEl.play().catch(err => {
-      console.log("Autoplay dicegah:", err);
-      resolve();
-    });
-
-    audioEl.addEventListener("ended", () => {
-
-      setTimeout(() => {
-        const tts = new SpeechSynthesisUtterance(teks);
-        tts.lang = 'id-ID';
-
-        speechSynthesis.cancel(); // mencegah TTS macet
-        speechSynthesis.speak(tts);
-
-        tts.onend = () => resolve();
-      }, 250);
-
-    }, { once: true });
-  });
-}
-
-document.getElementById('loadBtn').addEventListener('click', muatSurat);
-document.getElementById('playAllBtn').addEventListener('click', playAll);
-</script>
-
-</body>
-</html>
+const $ = id => document.getElementById(id);
+const surahSelect=$("surah"), juzSelect=$("juz"), output=$("output"), status=$("status");
+surahs.forEach((s,i)=>{const o=document.createElement("option");o.value=i+1
