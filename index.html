@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recite Quran - Arab + Terjemahan Suara</title>
+<link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui;background:#fff;color:#111}
+.top{position:sticky;top:0;background:#fff;border-bottom:1px solid #eee;z-index:20}.top-in{max-width:900px;margin:auto;display:flex;gap:10px;padding:12px 16px;align-items:center}
+.logo{font-weight:800;font-size:19px}.logo span{color:#0e7a55}.spacer{flex:1}
+select,input{padding:9px 10px;border:1px solid #e5e5e5;border-radius:10px;background:#fafafa}
+.btn{border:1px solid #e5e5e5;background:#fff;padding:9px 12px;border-radius:999px;cursor:pointer}.btn.primary{background:#0e7a55;color:#fff;border-color:#0e7a55}
+.wrap{max-width:760px;margin:auto;padding:16px 16px 130px}
+.verse-card{border:1px solid #eee;border-radius:20px;padding:22px;margin:16px 0}.verse-card.playing{border:2px solid #0e7a55;background:#f0faf5}
+.arab{font-family:'Amiri Quran',serif;font-size:42px;line-height:1.9;text-align:right;direction:rtl}.trans{text-align:center;line-height:1.7;color:#444}
+.badge{display:inline-block;background:#eaf6f0;color:#0e7a55;padding:5px 11px;border-radius:999px;font-weight:700;font-size:13px}
+.player{position:fixed;bottom:0;left:0;right:0;background:#111;color:#fff;z-index:30}.player-in{max-width:900px;margin:auto;display:flex;gap:10px;padding:12px 16px;align-items:center;flex-wrap:wrap}
+.player-in audio{flex:1;min-width:180px;height:36px;filter:invert(1)}
+.status{font-size:13px}.settings{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.surah{border:1px solid #eee;padding:12px;border-radius:14px;cursor:pointer}
+</style></head><body>
+<div class="top"><div class="top-in"><div class="logo">Recite<span>Quran</span> <small style="font-weight:400;color:#888">Arab + Suara Terjemahan</small></div><div class="spacer"></div><select id="qari"><option value="ar.alafasy">Mishary Alafasy</option><option value="ar.abdulrahmanalsudais">Al-Sudais</option><option value="ar.mahermualaiqly">Maher Al-Muaiqly</option></select></div>
+<div class="top-in" style="padding-top:0"><select id="surahSel" style="flex:1"></select><input id="goto" placeholder="1:3" style="width:90px"><button class="btn primary" onclick="goGoto()">Go</button></div></div>
+<div class="wrap">
+<div style="text-align:center"><h1 id="surahName" style="margin:4px 0">Al-Fatihah</h1><p id="surahMeta" style="color:#888;margin:0">The Opening - 7 Ayat</p></div>
+<div class="settings">
+<button class="btn primary" onclick="playSurahFromCurrent()">▶ Play: Arab → Terjemahan Suara → Ayat Berikutnya</button>
+<button class="btn" onclick="stopAll()">⏹ Stop</button>
+<label style="font-size:13px">Kecepatan: <select id="ttsRate"><option value="0.9">Pelan</option><option value="1.1" selected>Normal</option><option value="1.4">Cepat</option></select></label>
+<label style="font-size:13px"><input type="checkbox" id="withTrans" checked> Suara Terjemahan ON</label>
+</div>
+<div id="content"><p style="text-align:center;padding:30px">Memuat...</p></div>
+<div style="display:flex;justify-content:space-between"><button class="btn" onclick="move(-1)">← Sebelumnya</button><button class="btn" onclick="move(1)">Berikutnya →</button></div>
+<h3>Semua Surah</h3><input id="search" placeholder="Cari Yasin..." style="width:100%;margin-bottom:10px" oninput="filterSurah(this.value)"><div class="list" id="surahList"></div>
+</div>
+<div class="player"><div class="player-in"><button class="btn primary" id="playBtn" onclick="playSurahFromCurrent()">▶ Play Semua</button><span class="status" id="status">Siap - 1:3</span><audio id="audio" controls></audio></div></div>
+<script>
+let curSurah=1,curAyah=3,allSurah=[],surahData=null,isPlaying=false;
+async function init(){
+const r=await fetch('https://api.alquran.cloud/v1/surah').then(r=>r.json());allSurah=r.data;
+document.getElementById('surahSel').innerHTML=allSurah.map(s=>`<option value="${s.number}" ${s.number==1?'selected':''}>${s.number}. ${s.englishName}</option>`).join('');
+document.getElementById('surahSel').onchange=e=>goSurah(+e.target.value,1);
+document.getElementById('surahList').innerHTML=allSurah.map(s=>`<div class="surah" onclick="goSurah(${s.number},1)"><b>${s.number}. ${s.englishName}</b><br><span>${s.numberOfAyahs} ayat</span></div>`).join('');
+const h=location.hash.replace('#/','');if(h&&h.includes(':')){const[s,a]=h.split(':');curSurah=+s;curAyah=+a;document.getElementById('surahSel').value=curSurah;}
+loadSurah();}
+function filterSurah(q){q=q.toLowerCase();document.querySelectorAll('.surah').forEach(el=>el.style.display=el.textContent.toLowerCase().includes(q)?'block':'none')}
+function goSurah(s,a=1){stopAll();curSurah=s;curAyah=a;document.getElementById('surahSel').value=s;location.hash=`#/${s}:${a}`;loadSurah();window.scrollTo({top:0,behavior:'smooth'})}
+function goGoto(){const v=document.getElementById('goto').value.trim()||'1:3';const[s,a]=v.split(':');if(s&&a)goSurah(+s,+a);}
+function move(d){let s=allSurah.find(x=>x.number==curSurah);let na=curAyah+d;if(na<1){if(curSurah>1)goSurah(curSurah-1,1);return;}if(na>s.numberOfAyahs){if(curSurah<114)goSurah(curSurah+1,1);return;}goSurah(curSurah,na);}
+async function loadSurah(){
+const[arab,indo,audio]=await Promise.all([fetch(`https://api.alquran.cloud/v1/surah/${curSurah}`).then(r=>r.json()),fetch(`https://api.alquran.cloud/v1/surah/${curSurah}/id.indonesian`).then(r=>r.json()),fetch(`https://api.alquran.cloud/v1/surah/${curSurah}/${document.getElementById('qari').value}`).then(r=>r.json())]);
+surahData={arab:arab.data,indo:indo.data,audio:audio.data};const s=surahData.arab;
+document.getElementById('surahName').textContent=`${s.englishName} - ${s.name}`;document.getElementById('surahMeta').textContent=`${s.englishNameTranslation} - ${s.numberOfAyahs} Ayat`;
+document.getElementById('content').innerHTML=s.ayahs.map((a,i)=>{const tr=surahData.indo.ayahs[i].text;return `<div class="verse-card" id="card-${a.numberInSurah}"><div style="display:flex;justify-content:space-between"><span class="badge">${curSurah}:${a.numberInSurah}</span><button class="btn" onclick="playOne(${a.numberInSurah})">▶ Play Ayat Ini</button></div><div class="arab">${a.text}</div><div class="trans">${tr}</div><div style="text-align:center;color:#888;font-size:12px" id="label-${a.numberInSurah}"></div></div>`}).join('');
+setTimeout(()=>{document.getElementById(`card-${curAyah}`)?.scrollIntoView({behavior:'smooth',block:'center'})},100);
+document.getElementById('status').textContent=`Siap - ${curSurah}:${curAyah}`;}
+function speakIndo(text){return new Promise(res=>{if(!document.getElementById('withTrans').checked)return res();speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='id-ID';u.rate=parseFloat(document.getElementById('ttsRate').value);const voices=speechSynthesis.getVoices();const v=voices.find(v=>v.lang.startsWith('id'))||voices.find(v=>v.lang.startsWith('ms'));if(v)u.voice=v;u.onend=()=>res();u.onerror=()=>res();speechSynthesis.speak(u);setTimeout(res,Math.min(15000,text.length*80+2000));});}
+function playAudio(src){return new Promise(res=>{const a=document.getElementById('audio');a.src=src;a.play().catch(()=>res());a.onended=()=>res();a.onerror=()=>res();});}
+async function playOne(n){stopAll();curAyah=n;isPlaying=true;await playSequence(n);isPlaying=false;}
+async function playSurahFromCurrent(){if(isPlaying){stopAll();return;}isPlaying=true;document.getElementById('playBtn').textContent='⏸ Stop';const total=surahData.arab.numberOfAyahs;for(let n=curAyah;n<=total;n++){if(!isPlaying)break;curAyah=n;location.hash=`#/${curSurah}:${n}`;await playSequence(n);}isPlaying=false;document.getElementById('playBtn').textContent='▶ Play Semua';document.getElementById('status').textContent='Selesai';}
+async function playSequence(n){document.querySelectorAll('.verse-card').forEach(c=>c.classList.remove('playing'));const card=document.getElementById(`card-${n}`);if(card){card.classList.add('playing');card.scrollIntoView({behavior:'smooth',block:'center'});}const arabAudio=surahData.audio.ayahs[n-1].audio;const indoText=surahData.indo.ayahs[n-1].text;document.getElementById(`label-${n}`).textContent='🔊 Arab...';document.getElementById('status').textContent=`🔊 Arab ${curSurah}:${n}`;await playAudio(arabAudio);if(!isPlaying)return;await new Promise(r=>setTimeout(r,300));document.getElementById(`label-${n}`).textContent='🗣️ Terjemahan Indonesia...';document.getElementById('status').textContent=`🗣️ Terjemahan ${curSurah}:${n}`;await speakIndo(indoText);document.getElementById(`label-${n}`).textContent='✅ Selesai';}
+function stopAll(){isPlaying=false;speechSynthesis.cancel();const a=document.getElementById('audio');a.pause();document.getElementById('playBtn').textContent='▶ Play Semua';document.getElementById('status').textContent='Dihentikan';}
+document.getElementById('qari').onchange=()=>{stopAll();loadSurah();};init();
+</script></body></html>
