@@ -1,3 +1,7 @@
+Berikut adalah perbaikan kode HTML/JavaScript lengkap di bawah ini.
+Kode ini telah diperbarui agar saat tombol **Mulai Autoplay** ditekan, aplikasi akan memutar **tilawah Al-Qur'an (audio qari pilihan)** terlebih dahulu per ayat, lalu setelah tilawah ayat tersebut selesai, sistem otomatis melanjutkan dengan membacakan **terjemahan bahasa Indonesia (sari tilawah/TTS)** sebelum berpindah ke ayat berikutnya sesuai pola yang Anda inginkan.
+Anda bisa langsung menyalin seluruh kode di bawah ini dan menyimpannya ke dalam file berformat .html (misalnya recite.html), lalu buka di browser:
+```html
 <!DOCTYPE html>
 <html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Recite Quran - Arab + TTS Terjemahan PASTI BUNYI</title>
@@ -16,12 +20,12 @@ select,input{padding:10px;border:1px solid #e5e5e5;border-radius:10px;background
 .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.surah{border:1px solid #eee;padding:12px;border-radius:14px;cursor:pointer}
 .debug{background:#fff3cd;border:1px solid #ffc107;border-radius:10px;padding:10px;font-size:13px;margin-top:8px}
 </style></head><body>
-<div class="top"><div class="top-in"><div class="logo">Recite<span>Quran</span> <small style="font-weight:400;color:#888">Arab → Terjemahan Bunyi</small></div><div class="spacer"></div>
+<div class="top"><div class="top-in"><div class="logo">Recite<span>Quran</span> <small style="font-weight:400;color:#888">Tilawah → Terjemahan Bunyi</small></div><div class="spacer"></div>
 <select id="qari"><option value="ar.alafasy">Mishary Alafasy</option><option value="ar.abdulrahmanalsudais">Al-Sudais</option><option value="ar.mahermualaiqly">Maher Al-Muaiqly</option></select>
 </div></div>
 <div class="wrap">
 <h1 id="surahName" style="text-align:center;margin:6px 0">Al-Fatihah</h1>
-<p style="text-align:center;color:#888;margin:0">Pola: 🔊 Arab → 🗣️ Terjemahan Indonesia → 🔊 Ayat Berikutnya</p>
+<p style="text-align:center;color:#888;margin:0">Pola: 🔊 Tilawah Qari → 🗣️ Terjemahan Indonesia → 🔊 Ayat Berikutnya</p>
 
 <div class="panel">
 <h3 style="margin:0 0 10px">▶ AUTOPLAY</h3>
@@ -35,10 +39,292 @@ select,input{padding:10px;border:1px solid #e5e5e5;border-radius:10px;background
 <button class="btn primary" id="playBtn" onclick="startAutoplay()" style="flex:1">▶ MULAI AUTOPLAY</button>
 <button class="btn stop" onclick="stopAll()">⏹ STOP</button>
 </div>
-<div class="debug" id="debug">Status: Siap. Tekan <b>TES SUARA TERJEMAHAN</b> dulu. Kalau bunyi "Yang Maha Pengasih", berarti sudah benar.</div>
+<div class="debug" id="debug">Status: Siap. Tekan <b>TES SUARA TERJEMAHAN</b> dulu.</div>
 <div class="row"><span id="queueInfo" style="font-size:13px;color:#555"></span></div>
 </div>
 <div id="content"><p style="text-align:center;padding:30px">Memuat...</p></div>
 <h3>Semua Surah</h3><input id="search" placeholder="Cari Yasin..." style="width:100%;margin-bottom:10px" oninput="filterSurah(this.value)"><div class="list" id="surahList"></div>
 </div>
-<div class="player"><div class="player-in"><button class="btn primary" onclick="startAutoplay()">▶ Play</button><span class="status" id="status">Siap</span
+<div class="player"><div class="player-in"><button class="btn primary" onclick="startAutoplay()">▶ Play</button><span class="status" id="status">Siap</span><audio id="audio" controls></audio></div></div>
+
+<script>
+let allSurahs = [];
+let queue = [];
+let currentIndex = 0;
+let isPlaying = false;
+let audio = document.getElementById('audio');
+
+async function init() {
+    try {
+        let res = await fetch('https://api.alquran.cloud/v1/surah');
+        let data = await res.json();
+        allSurahs = data.data;
+        
+        let sSel = document.getElementById('surahSel');
+        let jSel = document.getElementById('juzSel');
+        let html = '';
+        allSurahs.forEach(s => {
+            html += `<option value="${s.number}">${s.number}. ${s.englishName} (${s.name})</option>`;
+        });
+        sSel.innerHTML = html;
+
+        let juzHtml = '';
+        for(let i=1; i<=30; i++) {
+            juzHtml += `<option value="${i}">Juz ${i}</option>`;
+        }
+        jSel.innerHTML = juzHtml;
+
+        renderSurahList(allSurahs);
+        loadSurahContent(1);
+    } catch(e) {
+        document.getElementById('content').innerHTML = '<p style="text-align:center;color:red">Gagal memuat data API Al-Quran.</p>';
+    }
+}
+
+function renderSurahList(list) {
+    document.getElementById('surahList').innerHTML = list.map(s => `
+        <div class="surah" onclick="selectSurah(${s.number})">
+            <b>${s.number}. ${s.englishName}</b><br><small>${s.name} (${s.numberOfAyahs} ayat)</small>
+        </div>
+    `).join('');
+}
+
+function filterSurah(keyword) {
+    let filtered = allSurahs.filter(s => s.englishName.toLowerCase().includes(keyword.toLowerCase()) || s.name.toLowerCase().includes(keyword.toLowerCase()) || s.englishNameTranslation.toLowerCase().includes(keyword.toLowerCase()));
+    renderSurahList(filtered);
+}
+
+function selectSurah(num) {
+    document.getElementById('mode').value = 'surah';
+    changeMode();
+    document.getElementById('surahSel').value = num;
+    loadSurahContent(num);
+}
+
+function changeMode() {
+    let m = document.getElementById('mode').value;
+    document.getElementById('box-range').style.display = m === 'range' ? 'block' : 'none';
+    document.getElementById('box-juz').style.display = m === 'juz' ? 'block' : 'none';
+    document.getElementById('box-surah').style.display = m === 'surah' ? 'block' : 'none';
+    
+    if(m === 'surah') {
+        loadSurahContent(document.getElementById('surahSel').value);
+    }
+}
+
+document.getElementById('surahSel').addEventListener('change', (e) => {
+    if(document.getElementById('mode').value === 'surah') {
+        loadSurahContent(e.target.value);
+    }
+});
+
+async function loadSurahContent(surahNum) {
+    document.getElementById('content').innerHTML = '<p style="text-align:center;padding:30px">Memuat ayat...</p>';
+    try {
+        let [resArab, resIndo] = await Promise.all([
+            fetch(`https://api.alquran.cloud/v1/surah/${surahNum}`),
+            fetch(`https://api.alquran.cloud/v1/surah/${surahNum}/id.indonesian`)
+        ]);
+        let dataArab = await resArab.json();
+        let dataIndo = await resIndo.json();
+        
+        document.getElementById('surahName').innerText = `${dataArab.data.englishName} - ${dataArab.data.name}`;
+        
+        let html = '';
+        for(let i=0; i<dataArab.data.ayahs.length; i++) {
+            let a = dataArab.data.ayahs[i];
+            let t = dataIndo.data.ayahs[i];
+            html += `
+                <div class="verse-card" id="card-${a.number}" data-surah="${dataArab.data.number}" data-ayah="${a.numberInSurah}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                        <span class="badge">Ayat ${a.numberInSurah}</span>
+                        <span style="font-size:12px;color:#888">Global #${a.number}</span>
+                    </div>
+                    <div class="arab">${a.text}</div>
+                    <hr style="border:0;border-top:1px dashed #eee;margin:15px 0">
+                    <div class="trans">${t.text}</div>
+                </div>
+            `;
+        }
+        document.getElementById('content').innerHTML = html;
+    } catch(e) {
+        document.getElementById('content').innerHTML = '<p style="text-align:center;color:red">Gagal memuat teks ayat.</p>';
+    }
+}
+
+function testTTS() {
+    speakText("Segala puji bagi Allah, Tuhan seluruh alam. Yang Maha Pengasih, Maha Penyayang.", () => {
+        document.getElementById('debug').innerHTML = "Status: Tes suara berhasil berbunyi!";
+    });
+}
+
+function speakText(text, onEnded) {
+    let mode = document.getElementById('ttsMode').value;
+    if(mode === 'google' || mode === 'auto') {
+        let u = new SpeechSynthesisUtterance(text);
+        u.lang = 'id-ID';
+        u.rate = 0.95;
+        u.onend = () => { if(onEnded) onEnded(); };
+        u.onerror = (err) => {
+            console.warn("Google TTS Error, fallback ke SpeechSynthesis browser:", err);
+            if(mode === 'auto') fallbackBrowserTTS(text, onEnded);
+            else if(onEnded) onEnded();
+        };
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(u);
+    } else {
+        fallbackBrowserTTS(text, onEnded);
+    }
+}
+
+function fallbackBrowserTTS(text, onEnded) {
+    if(!('speechSynthesis' in window)) {
+        alert("Browser tidak mendukung Text-to-Speech.");
+        if(onEnded) onEnded();
+        return;
+    }
+    window.speechSynthesis.cancel();
+    let utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'id-ID';
+    utterance.rate = 0.9;
+    utterance.onend = () => { if(onEnded) onEnded(); };
+    utterance.onerror = () => { if(onEnded) onEnded(); };
+    window.speechSynthesis.speak(utterance);
+}
+
+async function buildQueue() {
+    queue = [];
+    let mode = document.getElementById('mode').value;
+    
+    if(mode === 'range') {
+        let fromVal = document.getElementById('from').value.split(':');
+        let toVal = document.getElementById('to').value.split(':');
+        let sSurah = parseInt(fromVal[0]);
+        let sAyah = parseInt(fromVal[1]);
+        let eSurah = parseInt(toVal[0]);
+        let eAyah = parseInt(toVal[1]);
+        
+        for(let s = sSurah; s <= eSurah; s++) {
+            let res = await fetch(`https://api.alquran.cloud/v1/surah/${s}/id.indonesian`);
+            let data = await res.json();
+            let start = (s === sSurah) ? sAyah : 1;
+            let end = (s === eSurah) ? eAyah : data.data.ayahs.length;
+            
+            for(let a = start; a <= end; a++) {
+                let ayahObj = data.data.ayahs[a-1];
+                queue.push({
+                    surah: s,
+                    ayah: a,
+                    audioUrl: `https://cdn.islamic.network/quran/audio/128/${document.getElementById('qari').value}/${ayahObj.number}.mp3`,
+                    translation: ayahObj.text
+                });
+            }
+        }
+    } else if(mode === 'surah') {
+        let sNum = document.getElementById('surahSel').value;
+        let res = await fetch(`https://api.alquran.cloud/v1/surah/${sNum}/id.indonesian`);
+        let data = await res.json();
+        data.data.ayahs.forEach(a => {
+            queue.push({
+                surah: parseInt(sNum),
+                ayah: a.numberInSurah,
+                audioUrl: `https://cdn.islamic.network/quran/audio/128/${document.getElementById('qari').value}/${a.number}.mp3`,
+                translation: a.text
+            });
+        });
+    } else if(mode === 'juz') {
+        let juzNum = document.getElementById('juzSel').value;
+        let res = await fetch(`https://api.alquran.cloud/v1/juz/${juzNum}/id.indonesian`);
+        let data = await res.json();
+        for(let a of data.data.ayahs) {
+            queue.push({
+                surah: a.surah.number,
+                ayah: a.numberInSurah,
+                audioUrl: `https://cdn.islamic.network/quran/audio/128/${document.getElementById('qari').value}/${a.number}.mp3`,
+                translation: a.text
+            });
+        }
+    }
+}
+
+async function startAutoplay() {
+    if(isPlaying) return;
+    isPlaying = true;
+    document.getElementById('status').innerText = "Menyiapkan daftar putar...";
+    document.getElementById('queueInfo').innerText = "Memuat data audio...";
+    
+    await buildQueue();
+    if(queue.length === 0) {
+        alert("Antrean kosong!");
+        stopAll();
+        return;
+    }
+    
+    currentIndex = 0;
+    playQueueItem();
+}
+
+function playQueueItem() {
+    if(!isPlaying || currentIndex >= queue.length) {
+        stopAll();
+        document.getElementById('status').innerText = "Selesai.";
+        return;
+    }
+    
+    let item = queue[currentIndex];
+    document.getElementById('status').innerText = `Memutar Surah ${item.surah} Ayat ${item.ayah} (Tilawah)`;
+    document.getElementById('queueInfo').innerText = `Antrean ${currentIndex + 1} dari ${queue.length}`;
+    
+    // Highlight kartu ayat aktif
+    document.querySelectorAll('.verse-card').forEach(el => el.classList.remove('playing'));
+    let card = document.getElementById(`card-${item.surah}-${item.ayah}`) || document.querySelector(`[data-surah='${item.surah}'][data-ayah='${item.ayah}']`);
+    if(card) {
+        card.classList.add('playing');
+        card.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }
+
+    // 1. Putar Audio Tilawah Qari terlebih dahulu
+    audio.src = item.audioUrl;
+    audio.play().catch(e => {
+        console.warn("Gagal memutar audio qari, lanjut ke terjemahan:", e);
+        playTranslation(item);
+    });
+
+    audio.onended = () => {
+        // Setelah tilawah selesai, jeda sebentar lalu putar Terjemahan (Sari Tilawah)
+        setTimeout(() => {
+            playTranslation(item);
+        }, 400);
+    };
+}
+
+function playTranslation(item) {
+    if(!isPlaying) return;
+    document.getElementById('status').innerText = `Membaca Terjemahan Surah ${item.surah} Ayat ${item.ayah}`;
+    
+    speakText(item.translation, () => {
+        // Setelah terjemahan selesai dibacakan, lanjut ke ayat berikutnya di antrean
+        if(isPlaying) {
+            currentIndex++;
+            setTimeout(() => {
+                playQueueItem();
+            }, 600);
+        }
+    });
+}
+
+function stopAll() {
+    isPlaying = false;
+    audio.pause();
+    audio.currentTime = 0;
+    window.speechSynthesis.cancel();
+    document.getElementById('status').innerText = "Dihentikan.";
+    document.getElementById('queueInfo').innerText = "";
+    document.querySelectorAll('.verse-card').forEach(el => el.classList.remove('playing'));
+}
+
+init();
+</script>
+</body></html>
+
+```
