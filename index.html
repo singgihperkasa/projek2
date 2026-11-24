@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f5132">
+<title>Quran Tilawah Otomatis</title>
+<style>
+:root{color-scheme:dark;--bg:#071b14;--panel:#10291f;--panel2:#17372a;--green:#27ae70;--muted:#a9c4b5;--line:#2a4b3b}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#071b14,#102a20);color:#f4fff8;font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:850px;margin:auto;padding:24px 16px 50px}.brand{text-align:center;margin:14px 0 24px}.brand .mark{font-size:38px}.brand h1{margin:4px 0;font-size:clamp(25px,5vw,36px)}.brand p{color:var(--muted);margin:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 10px 30px #0002}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}label{font-size:13px;color:var(--muted)}
+select,input,button{font:inherit;border-radius:11px;border:1px solid var(--line);padding:11px 12px;background:#0a2118;color:#fff;width:100%}button{cursor:pointer;font-weight:650}button:disabled{opacity:.45;cursor:not-allowed}
+.primary{background:var(--green);border-color:var(--green);color:#062014}.secondary{background:var(--panel2)}.controls{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:9px;margin-top:14px}
+.status{color:var(--muted);font-size:14px;text-align:center;min-height:24px}.progress{height:7px;background:#294638;border-radius:99px;overflow:hidden;margin:12px 0}.bar{height:100%;width:0;background:var(--green);transition:width .2s}
+.ayah{text-align:center;padding:24px 8px}.meta{color:#9bc8ae;font-size:14px}.arabic{font-family:"Noto Naskh Arabic","Amiri",serif;font-size:clamp(30px,7vw,45px);line-height:1.9;direction:rtl;margin:20px 0}.translation{font-size:18px;color:#e0f1e7;margin:12px auto;max-width:680px}.translation-label{color:#9bc8ae;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.note{color:var(--muted);font-size:13px}.hidden{display:none!important}.check{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px;margin-top:12px}.check input{width:auto}
+@media(max-width:560px){.grid{grid-template-columns:1fr}.controls{grid-template-columns:1fr 1fr}.controls button:first-child{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<main>
+  <header class="brand"><div class="mark">📖</div><h1>Quran Tilawah Otomatis</h1><p>Satu ayat · Murottal · Terjemahan Indonesia · Lanjut otomatis</p></header>
+
+  <section class="card">
+    <div class="grid">
+      <div class="field"><label for="mode">Mode membaca</label><select id="mode"><option value="surah">Berdasarkan Surah</option><option value="juz">Berdasarkan Juz</option></select></div>
+      <div class="field" id="surahField"><label for="surah">Pilih surah</label><select id="surah"><option value="1">Memuat daftar surah...</option></select></div>
+      <div class="field" id="startField"><label for="start">Mulai ayat</label><input id="start" type="number" min="1" value="1"></div>
+      <div class="field" id="endField"><label for="end">Sampai ayat</label><input id="end" type="number" min="1" value="7"></div>
+      <div class="field full hidden" id="juzField"><label for="juz">Pilih juz</label><select id="juz"></select></div>
+      <div class="field"><label for="rate">Kecepatan suara terjemahan</label><select id="rate"><option value="0.85">Lambat</option><option value="1" selected>Normal</option><option value="1.15">Agak cepat</option></select></div>
+      <div class="field"><label for="voice">Suara bahasa Indonesia</label><select id="voice"><option value="">Otomatis</option></select></div>
+    </div>
+    <label class="check"><input type="checkbox" id="speakTranslation" checked> Bacakan terjemahan setelah murottal</label>
+    <label class="check"><input type="checkbox" id="repeat"> Ulangi setiap ayat sebelum lanjut</label>
+    <div class="controls">
+      <button class="primary" id="startBtn">▶ Mulai tilawah</button>
+      <button class="secondary" id="pauseBtn" disabled>Ⅱ Jeda</button>
+      <button class="secondary" id="stopBtn" disabled>■ Berhenti</button>
+    </div>
+    <p class="note">Catatan: suara terjemahan memakai fitur suara bawaan browser/perangkat. Ketersediaan suara Indonesia bergantung pada perangkat Anda.</p>
+  </section>
+
+  <section class="card ayah">
+    <div class="meta" id="ayahMeta">Pilih surah atau juz, lalu tekan Mulai tilawah</div>
+    <div class="arabic" id="arabic">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+    <div class="translation-label">Terjemahan Indonesia</div>
+    <div class="translation" id="translation">Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.</div>
+  </section>
+  <section class="card">
+    <div class="status" id="status" aria-live="polite">Siap digunakan</div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="status" id="counter">0 / 0 ayat</div>
+  </section>
+  <audio id="player" preload="none"></audio>
+</main>
+<script>
+(() => {
+  const API = 'https://api.alquran.cloud/v1';
+  const $ = id => document.getElementById(id);
+  const state = { verses: [], index: 0, running: false, paused: false, token: 0, repeatCount: 0, totalRepeats: 0 };
+  const player = $('player');
+  const cache = new Map();
+
+  async function api(path) {
+    const response = await fetch(`${API}${path}`);
+    if (!response.ok) throw new Error(`Koneksi API gagal (${response.status})`);
+    const json = await response.json();
+    if (json.code !== 200) throw new Error(json.status || 'Data Al-Qur’an tidak tersedia');
+    return json.data;
+  }
+
+  async function loadSurahs() {
+    try {
+      const surahs = await api('/surah');
+      $('surah').innerHTML = surahs.map(s => `<option value="${s.number}">${s.number}. ${escapeHtml(s.englishName)} — ${escapeHtml(s.name)} (${s.numberOfAyahs} ayat)</option>`).join('');
+      updateAyahLimit();
+    } catch (e) {
+      $('status').textContent = `Gagal memuat daftar surah: ${e.message}`;
+    }
+  }
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function updateAyahLimit() {
+    const option = $('surah').selectedOptions[0];
+    const total = option ? Number(option.value) === 1 ? 7 : undefined : undefined;
+    if (option) {
+      // Jumlah ayat diambil dari teks opsi agar tidak perlu permintaan tambahan.
+      const match = option.textContent.match(/\((\d+) ayat\)/);
+      const count = match ? Number(match[1]) : total;
+      $('start').max = count || '';
+      $('end').max = count || '';
+      $('end').value = count || 1;
+    }
+  }
+  function setupJuz() {
+    $('juz').innerHTML = Array.from({length:30},(_,i)=>`<option value="${i+1}">Juz ${i+1}</option>`).join('');
+  }
+  $('mode').addEventListener('change', () => {
+    const isJuz = $('mode').value === 'juz';
+    $('surahField').classList.toggle('hidden', isJuz);
+    $('startField').classList.toggle('hidden', isJuz);
+    $('endField').classList.toggle('hidden', isJuz);
+    $('juzField').classList.toggle('hidden', !isJuz);
+  });
+  $('surah').addEventListener('change', updateAyahLimit);
+
+  function loadVoices() {
+    const voices = speechSynthesis.getVoices();
+    const idVoices = voices.filter(v => v.lang.toLowerCase().startsWith('id'));
+    $('voice').innerHTML = '<option value="">Otomatis</option>' + idVoices.map((v,i)=>`<option value="${i}">${escapeHtml(v.name)} (${escapeHtml(v.lang)})</option>`).join('');
+    $('voice').dataset.names = JSON.stringify(idVoices.map(v=>v.name));
+  }
+  if ('speechSynthesis' in window) {
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+  } else {
+    $('speakTranslation').checked = false;
+    $('speakTranslation').disabled = true;
+  }
+
+  async function buildQueue() {
+    if ($('mode').value === 'surah') {
+      const surah = Number($('surah').value);
+      const start = Number($('start').value);
+      const end = Number($('end').value);
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start) throw new Error('Rentang ayat tidak valid.');
+      const [arab, trans] = await Promise.all([
+        api(`/surah/${surah}/${'ar.alafasy'}`),
+        api(`/surah/${surah}/id.indonesian`)
+      ]);
+      if (end > arab.ayahs.length) throw new Error(`Surah ini hanya memiliki ${arab.ayahs.length} ayat.`);
+      return arab.ayahs.slice(start-1,end).map((a,i)=>({
+        surah: arab.number, surahName: arab.englishName, number: a.numberInSurah,
+        arabic: a.text, audio: a.audio, translation: trans.ayahs[start-1+i].text
+      }));
+    }
+    const juz = Number($('juz').value);
+    const [arab, trans] = await Promise.all([
+      api(`/juz/${juz}/ar.alafasy`),
+      api(`/juz/${juz}/id.indonesian`)
+    ]);
+    const transByNumber = new Map(trans.ayahs.map(a=>[a.number,a.text]));
+    return arab.ayahs.map(a=>({
+      surah:a.surah.number, surahName:a.surah.englishName, number:a.numberInSurah,
+      arabic:a.text, audio:a.audio, translation:transByNumber.get(a.number) || ''
+    }));
+  }
+
+  function showVerse(v) {
+    $('ayahMeta').textContent = `${v.surahName} · Surah ${v.surah} · Ayat ${v.number}`;
+    $('arabic').textContent = v.arabic;
+    $('translation').textContent = v.translation;
+    $('counter').textContent = `${state.index+1} / ${state.verses.length} ayat`;
+    $('bar').style.width = `${((state.index+1)/state.verses.length)*100}%`;
+  }
+  function setStatus(text) { $('status').textContent = text; }
+  function getSelectedVoice() {
+    const voices = speechSynthesis.getVoices();
+    const idVoices = voices.filter(v=>v.lang.toLowerCase().startsWith('id'));
+    const index = $('voice').value;
+    if (index !== '') {
+      const names = JSON.parse($('voice').dataset.names || '[]');
+      return voices.find(v=>v.name===names[Number(index)]) || idVoices[0];
+    }
+    return idVoices[0] || null;
+  }
+  function speakTranslation(text, token) {
+    return new Promise(resolve => {
+      if (!$('speakTranslation').checked || !text || !('speechSynthesis' in window)) return resolve();
+      if (token !== state.token || !state.running) return resolve();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'id-ID';
+      utterance.rate = Number($('rate').value);
+      const voice = getSelectedVoice();
+      if (voice) utterance.voice = voice;
+      utterance.onstart = () => setStatus('Sedang membacakan terjemahan…');
+      utterance.onend = resolve;
+      utterance.onerror = resolve;
+      speechSynthesis.speak(utterance);
+    });
+  }
+  const wait = ms => new Promise(resolve=>setTimeout(resolve,ms));
+
+  async function playCurrent(token) {
+    if (token !== state.token || !state.running) return;
+    if (state.index >= state.verses.length) {
+      state.running = false; updateButtons(); setStatus('Alhamdulillah, tilawah selesai.'); return;
+    }
+    const verse = state.verses[state.index];
+    showVerse(verse);
+    setStatus(`Memutar murottal · ${verse.surahName} ayat ${verse.number}`);
+    try {
+      player.pause();
+      player.src = verse.audio;
+      player.load();
+      await player.play();
+      await new Promise(resolve => {
+        player.onended = resolve;
+        player.onerror = resolve;
+      });
+      if (token !== state.token || !state.running) return;
+      await speakTranslation(verse.translation, token);
+      if (token !== state.token || !state.running) return;
+      if (state.repeatCount < state.totalRepeats) {
+        state.repeatCount++;
+        setStatus(`Mengulang ayat (${state.repeatCount}/${state.totalRepeats})…`);
+        await wait(500);
+        return playCurrent(token);
+      }
+      state.repeatCount = 0;
+      state.index++;
+      if (state.index < state.verses.length) {
+        await wait(700);
+        return playCurrent(token);
+      }
+      state.running = false; updateButtons(); setStatus('Alhamdulillah, tilawah selesai.');
+    } catch (e) {
+      if (token !== state.token) return;
+      state.running = false; updateButtons();
+      setStatus(`Audio tidak dapat diputar. Periksa koneksi internet lalu tekan Mulai lagi. (${e.message})`);
+    }
+  }
+  function updateButtons() {
+    $('startBtn').disabled = state.running;
+    $('pauseBtn').disabled = !state.running;
+    $('stopBtn').disabled = !state.running;
+    $('pauseBtn').textContent = state.paused ? '▶ Lanjut' : 'Ⅱ Jeda';
+  }
+
+  $('startBtn').addEventListener('click', async () => {
+    try {
+      stop(false);
+      setStatus('Mengambil ayat dan terjemahan…');
+      state.verses = await buildQueue();
+      if (!state.verses.length) throw new Error('Tidak ada ayat pada pilihan ini.');
+      state.index = 0;
+      state.repeatCount = 0;
+      state.totalRepeats = $('repeat').checked ? 1 : 0;
+      state.running = true; state.paused = false; state.token++;
+      updateButtons();
+      playCurrent(state.token);
+    } catch (e) {
+      state.running = false; updateButtons(); setStatus(e.message);
+    }
+  });
+  $('pauseBtn').addEventListener('click', () => {
+    if (!state.running) return;
+    if (!state.paused) {
+      state.paused = true; player.pause(); speechSynthesis.pause(); setStatus('Dijeda.');
+    } else {
+      state.paused = false; player.play().catch(()=>{}); speechSynthesis.resume(); setStatus('Dilanjutkan.');
+    }
+    updateButtons();
+  });
+  function stop(update=true) {
+    state.token++; state.running = false; state.paused = false;
+    player.pause(); player.removeAttribute('src'); player.load();
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    if (update) { updateButtons(); setStatus('Tilawah dihentikan.'); }
+  }
+  $('stopBtn').addEventListener('click',()=>stop(true));
+  setupJuz();
+  loadSurahs();
+})();
+</script>
+</body>
+</html>
